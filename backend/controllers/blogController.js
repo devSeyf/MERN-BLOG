@@ -166,7 +166,6 @@ exports.deleteBlog = async (req, res) => {
   }
 };
 
-
 // Get similar blogs based on category and tags
 exports.getSimilarBlogs = async (req, res) => {
     try {
