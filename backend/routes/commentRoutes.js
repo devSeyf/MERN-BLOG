@@ -3,13 +3,13 @@ const router = express.Router();
 const commentController = require('../controllers/commentController');
 const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
 
-// Add a comment (requires authentication)
+// Add a comment to a blog (requires authentication)
 router.post('/:blogId/comments', verifyToken, commentController.addComment);
 
 // Delete a comment (requires authentication + ownership or admin)
 router.delete('/:blogId/comments/:commentId', verifyToken, commentController.deleteComment);
 
-// Toggle like (requires authentication)
+// Toggle like on a blog (requires authentication)
 router.post('/:blogId/like', verifyToken, commentController.toggleLike);
 
 module.exports = router;

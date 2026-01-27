@@ -6,11 +6,10 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     isAdmin: { type: Boolean, default: false } 
 }, { timestamps: true });
-// Automatically encrypt the password before saving it in the database
-userSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) return next();
+userSchema.pre('save', async function() {
+    // Only hash if password is new or modified
+    if (!this.isModified('password')) return;
+    // Hash password with salt rounds of 10
     this.password = await bcrypt.hash(this.password, 10);
-    next();
 });
-
 module.exports = mongoose.model('User', userSchema);

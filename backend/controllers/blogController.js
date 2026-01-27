@@ -1,39 +1,11 @@
 const Blog = require("../models/Blog");
-// Create a new blog post
-exports.createBlog = async (req, res) => {
-  try {
-    const newBlog = new Blog({
-      ...req.body,
-      author: req.user.id, // Get user ID from the verified token
-    });
-    const savedBlog = await newBlog.save();
-    res.status(201).json(savedBlog);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
 
-// all posts
-// Get a single blog by ID (and increment views)
-// Get all blogs with advanced search, filter, and pagination
+// Get all blogs with search, filter, pagination
 exports.getAllBlogs = async (req, res) => {
   try {
-    // Extract query parameters from URL
-    const {
-      search, // Search keyword
-      category, // Filter by category
-      tags, // Filter by tags
-      author, // Filter by author ID
-      sortBy, // Sort field (e.g., "views", "likes", "createdAt")
-      order, // Sort order ("asc" or "desc")
-      page, // Page number for pagination
-      limit, // Items per page
-    } = req.query;
-
-    // Build the filter object dynamically
+    const { search, category, tags, author, sortBy, order, page, limit } =
+      req.query;
     let filter = {};
-
-    // Search in title and content using regex (case-insensitive, partial match)
     if (search) {
       filter.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -41,44 +13,36 @@ exports.getAllBlogs = async (req, res) => {
       ];
     }
 
-    // Filter by category (exact match)
     if (category) {
       filter.category = category;
     }
 
-    // Filter by tags (match any tag in the array)
     if (tags) {
-      // Tags can be sent as comma-separated string: "tech,ai,web"
       const tagsArray = tags.split(",").map((tag) => tag.trim());
       filter.tags = { $in: tagsArray };
     }
 
-    // Filter by author ID
     if (author) {
       filter.author = author;
     }
 
-    // Determine sort options (default: newest first)
     let sortOptions = {};
     if (sortBy) {
       sortOptions[sortBy] = order === "asc" ? 1 : -1;
     } else {
-      sortOptions.createdAt = -1; // Default: newest first
+      sortOptions.createdAt = -1;
     }
 
-    // Pagination setup
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
 
-    // Execute the query with all filters, sorting, and pagination
     const blogs = await Blog.find(filter)
       .populate("author", "username")
       .sort(sortOptions)
       .skip(skip)
       .limit(limitNum);
 
-    // Get total count for pagination metadata
     const totalBlogs = await Blog.countDocuments(filter);
 
     res.status(200).json({
@@ -94,3 +58,143 @@ exports.getAllBlogs = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Get a single blog by ID (and increment views)
+exports.getBlogById = async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.id)
+      .populate("author", "username")
+      .populate("comments.user", "username");
+
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    blog.views += 1;
+    await blog.save();
+
+    res.status(200).json(blog);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Create a new blog post with optional cover image
+exports.createBlog = async (req, res) => {
+  try {
+    const blogData = {
+      ...req.body,
+      author: req.user.id,
+    };
+
+    if (req.file) {
+      blogData.coverImage = req.file.path;
+    }
+
+    const newBlog = new Blog(blogData);
+    const savedBlog = await newBlog.save();
+
+    res.status(201).json(savedBlog);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Update a blog post
+exports.updateBlog = async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.id);
+
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    // Check authorization: author or admin
+    if (blog.author.toString() !== req.user.id && !req.user.isAdmin) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update this blog" });
+    }
+
+    const updateData = { ...req.body };
+
+    if (req.file) {
+      updateData.coverImage = req.file.path;
+    }
+
+    const updatedBlog = await Blog.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true },
+    );
+
+    if (!updatedBlog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    res.status(200).json(updatedBlog);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Delete a blog post
+exports.deleteBlog = async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.id);
+
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    // Check authorization: author or admin
+    if (blog.author.toString() !== req.user.id && !req.user.isAdmin) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this blog" });
+    }
+
+    const deletedBlog = await Blog.findByIdAndDelete(req.params.id);
+
+    if (!deletedBlog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
+
+    res.status(200).json({ message: "Blog deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// Get similar blogs based on category and tags
+exports.getSimilarBlogs = async (req, res) => {
+    try {
+        const blogId = req.params.id;
+        
+        // Get the current blog to find its category and tags
+        const currentBlog = await Blog.findById(blogId);
+        
+        if (!currentBlog) {
+            return res.status(404).json({ message: "Blog not found" });
+        }
+        
+        // Find similar blogs (same category OR matching tags)
+        const similarBlogs = await Blog.find({
+            _id: { $ne: blogId }, // Exclude current blog
+            $or: [
+                { category: currentBlog.category }, // Same category
+                { tags: { $in: currentBlog.tags } } // Matching tags
+            ]
+        })
+        .sort({ views: -1 }) // Sort by most viewed
+        .limit(5) // Return max 5 similar blogs
+        .select('title category tags views likes createdAt coverImage')
+        .populate('author', 'username');
+        
+        res.status(200).json(similarBlogs);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
