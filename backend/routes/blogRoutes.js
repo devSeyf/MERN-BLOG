@@ -5,12 +5,6 @@ const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
 const upload = require('../config/multerConfig');
 const { processImage } = require('../middleware/imageProcessor');
 
-
-
-
-
-
-
 // Public routes
 router.get('/', blogController.getAllBlogs);
 router.get('/:id', blogController.getBlogById)

@@ -1,5 +1,4 @@
 const Blog = require("../models/Blog");
-
 // Get all blogs with search, filter, pagination
 exports.getAllBlogs = async (req, res) => {
   try {

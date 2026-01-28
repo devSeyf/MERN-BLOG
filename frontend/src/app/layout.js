@@ -1,13 +1,12 @@
-import "./globals.css";
-export const metadata = {
-  title: "MERN-blog",
-  description: "MERN-blog",
-};
+import './globals.css';
+import { Providers } from './providers';
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

@@ -1,1 +1,145 @@
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap');
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    transition-property: color, background-color, border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+}
+
+@layer components {
+  .container-custom {
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-custom {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-custom {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  .card {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    border: 1px solid rgb(229 231 235);
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+
+  .dark .card {
+    background-color: rgb(41 37 36);
+    border-color: rgb(68 64 60);
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* Quill Editor Dark Mode Styles */
+.dark .ql-toolbar.ql-snow {
+  border-color: white !important;
+  background-color: transparent !important;
+}
+
+.dark .ql-container.ql-snow {
+  border-color: white !important;
+  background-color: transparent !important;
+}
+
+.dark .ql-editor {
+  color: white !important;
+}
+
+.dark .ql-editor.ql-blank::before {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.dark .ql-stroke {
+  stroke: white !important;
+}
+
+.dark .ql-fill {
+  fill: white !important;
+}
+
+.dark .ql-picker-label {
+  color: white !important;
+}
+
+.dark .ql-picker-options {
+  background-color: #0f766e !important;
+  border-color: white !important;
+}
+
+.dark .ql-picker-item {
+  color: white !important;
+}
+
+.dark .ql-picker-item:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .ql-toolbar button:hover,
+.dark .ql-toolbar button:focus {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .ql-toolbar button.ql-active {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+
+
+
+/* Make all interactive elements show pointer cursor */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+select,
+.cursor-pointer {
+  cursor: pointer;
+}
+
+button:disabled,
+a.disabled {
+  cursor: not-allowed;
+}
