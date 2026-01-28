@@ -1,133 +1,94 @@
 'use client';
-
-import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import Container from '@/components/common/Container';
 import Link from 'next/link';
+import blogService from '@/services/blogService';
+import authService from '@/services/authService';
 
 export default function BlogDetailPage() {
     const params = useParams();
+    const router = useRouter();
+    const [post, setPost] = useState(null);
+    const [similarPosts, setSimilarPosts] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [comment, setComment] = useState('');
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-    // Dummy blog post data (سنستبدلها بـ API لاحقاً)
-    const post = {
-        id: params.id,
-        title: 'Bill Walsh leadership lessons',
-        content: `
-      <p>Bill Walsh is one of the most legendary coaches in NFL history. He transformed the San Francisco 49ers from a struggling franchise into a dynasty that won three Super Bowls during his tenure.</p>
-      
-      <h2>Early Career and Philosophy</h2>
-      <p>Walsh developed his coaching philosophy over many years as an assistant coach. He believed in meticulous preparation, innovative offensive schemes, and treating players with respect. His "West Coast Offense" revolutionized professional football.</p>
-      
-      <h2>Key Leadership Principles</h2>
-      <p>Walsh's leadership style was characterized by several key principles:</p>
-      
-      <ul>
-        <li><strong>Standard of Performance:</strong> Walsh believed in establishing a clear standard of performance for everyone in the organization, from players to secretaries.</li>
-        <li><strong>Attention to Detail:</strong> Every aspect of the team's operation was scrutinized and optimized.</li>
-        <li><strong>Innovation:</strong> Walsh constantly sought new ways to gain competitive advantages.</li>
-        <li><strong>Teaching:</strong> He saw himself as a teacher first, helping players reach their full potential.</li>
-      </ul>
-      
-      <h2>Building a Winning Culture</h2>
-      <p>When Walsh took over the 49ers in 1979, the team had won only two games the previous season. Rather than focusing solely on winning, he focused on building the right culture and processes. The wins followed naturally.</p>
-      
-      <blockquote>
-        "The score will take care of itself when you take care of the details that lead to victory."
-      </blockquote>
-      
-      <h2>Legacy and Impact</h2>
-      <p>Walsh's influence extends far beyond his championship rings. Many of his assistant coaches went on to become successful head coaches themselves, spreading his philosophy throughout the NFL. His emphasis on preparation, innovation, and treating people with dignity remains relevant for leaders in any field.</p>
-      
-      <h2>Lessons for Modern Leaders</h2>
-      <p>Today's leaders can learn valuable lessons from Walsh's approach:</p>
-      
-      <ol>
-        <li>Establish clear standards and hold everyone accountable</li>
-        <li>Pay attention to the smallest details</li>
-        <li>Never stop innovating and learning</li>
-        <li>Invest in developing your team members</li>
-        <li>Focus on the process, not just the results</li>
-      </ol>
-    `,
-        author: {
-            name: 'Olivia Rhye',
-            role: 'Product Designer',
-            avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-            bio: 'Olivia is a product designer with a passion for creating beautiful and functional user experiences.',
-        },
-        date: '20 Jan 2022',
-        readTime: '8 min read',
-        views: 1234,
-        likes: 89,
-        image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=600&fit=crop',
-        category: 'Leadership',
-        tags: ['Leadership', 'Management', 'Presentation'],
+    useEffect(() => {
+        if (params.id) {
+            fetchBlogData();
+        }
+    }, [params.id]);
+
+    const fetchBlogData = async () => {
+        setIsLoading(true);
+        try {
+            const blogData = await blogService.getBlogById(params.id);
+            setPost(blogData);
+
+            // Fetch similar blogs
+            const similar = await blogService.getSimilarBlogs(params.id);
+            setSimilarPosts(similar);
+        } catch (error) {
+            console.error('Failed to fetch blog:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    // Dummy comments
-    const [comments, setComments] = useState([
-        {
-            id: 1,
-            name: 'John Doe',
-            date: '2 days ago',
-            content: 'Great article! I really enjoyed reading about Bill Walsh\'s leadership principles.',
-        },
-        {
-            id: 2,
-            name: 'Jane Smith',
-            date: '3 days ago',
-            content: 'The section on building a winning culture was particularly insightful. Thanks for sharing!',
-        },
-    ]);
-
-    // Similar posts
-    const similarPosts = [
-        {
-            id: 2,
-            title: 'PM mental models',
-            excerpt: 'Mental models are simple expressions of complex processes or relationships.',
-            author: 'Demi Wilkinson',
-            date: '16 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&h=300&fit=crop',
-            tags: ['Product', 'Research'],
-        },
-        {
-            id: 3,
-            title: 'What is Wireframing?',
-            excerpt: 'Introduction to Wireframing and its Principles.',
-            author: 'Candice Wu',
-            date: '15 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&h=300&fit=crop',
-            tags: ['Design', 'Research'],
-        },
-        {
-            id: 4,
-            title: 'How collaboration makes us better',
-            excerpt: 'Collaboration can make our teams stronger.',
-            author: 'Natali Craig',
-            date: '14 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
-            tags: ['Design', 'Research'],
-        },
-    ];
-
-    const handleCommentSubmit = (e) => {
+    const handleCommentSubmit = async (e) => {
         e.preventDefault();
-        const newComment = {
-            id: comments.length + 1,
-            name,
-            date: 'Just now',
-            content: comment,
-        };
-        setComments([newComment, ...comments]);
-        setComment('');
-        setName('');
-        setEmail('');
+        if (!authService.isAuthenticated()) {
+            router.push('/login');
+            return;
+        }
+
+        setIsSubmittingComment(true);
+        try {
+            // Check if backend has a comment service/endpoint
+            // Based on commentRoutes.js, it's POST /api/blogs/:blogId/comments
+            const response = await fetch(`http://localhost:5000/api/blogs/${params.id}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ text: comment })
+            });
+
+            if (response.ok) {
+                setComment('');
+                fetchBlogData(); // Refresh to see new comment
+            }
+        } catch (error) {
+            console.error('Failed to post comment:', error);
+        } finally {
+            setIsSubmittingComment(false);
+        }
     };
+
+    if (isLoading) {
+        return (
+            <MainLayout>
+                <div className="flex justify-center items-center min-h-screen bg-beige-100 dark:bg-primary-700">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-700 dark:border-white"></div>
+                </div>
+            </MainLayout>
+        );
+    }
+
+    if (!post) {
+        return (
+            <MainLayout>
+                <div className="flex flex-col justify-center items-center min-h-screen bg-beige-100 dark:bg-primary-700 text-primary-700 dark:text-white">
+                    <h1 className="text-4xl font-bold mb-4">Blog not found</h1>
+                    <Link href="/blogs" className="underline">Back to all blogs</Link>
+                </div>
+            </MainLayout>
+        );
+    }
 
     return (
         <MainLayout>
@@ -171,8 +132,8 @@ export default function BlogDetailPage() {
                     <div className="flex flex-wrap items-center gap-4 text-primary-700 dark:text-white/80">
                         <div className="flex items-center gap-2">
                             <img
-                                src={post.author.avatar}
-                                alt={post.author.name}
+                                src={post.author?.avatar ? `http://localhost:5000/${post.author.avatar}` : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&q=80'}
+                                alt={post.author?.username}
                                 className="w-10 h-10 rounded-full object-cover"
                             />
                             <div>
@@ -279,7 +240,7 @@ export default function BlogDetailPage() {
                             {/* Comments Section */}
                             <div className="mt-16">
                                 <h2 className="text-3xl font-bold text-primary-700 dark:text-white mb-8">
-                                    Comments ({comments.length})
+                                    Comments ({post.comments?.length || 0})
                                 </h2>
 
                                 {/* Comment Form */}
@@ -287,24 +248,6 @@ export default function BlogDetailPage() {
                                     <h3 className="text-xl font-semibold text-primary-700 dark:text-white mb-4">
                                         Leave a comment
                                     </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                        <input
-                                            type="text"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            placeholder="Your name"
-                                            required
-                                            className="px-4 py-3 bg-white dark:bg-transparent border-2 border-primary-700 dark:border-white rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-700 dark:focus:ring-white transition-colors"
-                                        />
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="Your email"
-                                            required
-                                            className="px-4 py-3 bg-white dark:bg-transparent border-2 border-primary-700 dark:border-white rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-700 dark:focus:ring-white transition-colors"
-                                        />
-                                    </div>
                                     <textarea
                                         value={comment}
                                         onChange={(e) => setComment(e.target.value)}
@@ -315,29 +258,35 @@ export default function BlogDetailPage() {
                                     />
                                     <button
                                         type="submit"
-                                        className="px-6 py-3 bg-primary-700 dark:bg-white text-white dark:text-primary-700 font-semibold rounded-lg hover:bg-primary-800 dark:hover:bg-white/90 transition-colors"
+                                        disabled={isSubmittingComment}
+                                        className="px-6 py-3 bg-primary-700 dark:bg-white text-white dark:text-primary-700 font-semibold rounded-lg hover:bg-primary-800 dark:hover:bg-white/90 transition-colors disabled:opacity-50"
                                     >
-                                        Post Comment
+                                        {isSubmittingComment ? 'Posting...' : 'Post Comment'}
                                     </button>
                                 </form>
 
                                 {/* Comments List */}
                                 <div className="space-y-6">
-                                    {comments.map((c) => (
-                                        <div key={c.id} className="p-6 card">
+                                    {post.comments?.map((c) => (
+                                        <div key={c._id} className="p-6 card">
                                             <div className="flex items-start justify-between mb-2">
                                                 <h4 className="font-semibold text-primary-700 dark:text-white">
-                                                    {c.name}
+                                                    {c.username}
                                                 </h4>
                                                 <span className="text-sm text-primary-700 dark:text-white/60">
-                                                    {c.date}
+                                                    {new Date(c.createdAt).toLocaleDateString()}
                                                 </span>
                                             </div>
                                             <p className="text-primary-700 dark:text-white/90">
-                                                {c.content}
+                                                {c.text}
                                             </p>
                                         </div>
                                     ))}
+                                    {post.comments?.length === 0 && (
+                                        <p className="text-center text-primary-700 dark:text-white/60 py-8">
+                                            No comments yet. Be the first to share your thoughts!
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -352,30 +301,39 @@ export default function BlogDetailPage() {
                                 <div className="space-y-6">
                                     {similarPosts.map((similar) => (
                                         <Link
-                                            key={similar.id}
-                                            href={`/blogs/${similar.id}`}
+                                            key={similar._id}
+                                            href={`/blogs/${similar._id}`}
                                             className="block card hover:shadow-xl transition-all group"
                                         >
                                             <div className="aspect-video overflow-hidden rounded-t-lg">
                                                 <img
-                                                    src={similar.image}
+                                                    src={similar.coverImage ? `http://localhost:5000/${similar.coverImage}` : 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&q=80'}
                                                     alt={similar.title}
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 />
                                             </div>
                                             <div className="p-4">
                                                 <p className="text-sm text-primary-700 dark:text-white/80 mb-2">
-                                                    {similar.author} • {similar.date}
+                                                    {similar.author?.username || 'Admin'} • {new Date(similar.createdAt).toLocaleDateString()}
                                                 </p>
                                                 <h4 className="text-lg font-bold text-primary-700 dark:text-white mb-2 group-hover:underline">
                                                     {similar.title}
                                                 </h4>
-                                                <p className="text-sm text-primary-700 dark:text-white/80 line-clamp-2">
-                                                    {similar.excerpt}
-                                                </p>
+                                                <div className="flex gap-2 flex-wrap">
+                                                    {similar.tags?.slice(0, 2).map(tag => (
+                                                        <span key={tag} className="text-xs px-2 py-0.5 border border-primary-700 dark:border-white rounded-full">
+                                                            {tag}
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </Link>
                                     ))}
+                                    {similarPosts.length === 0 && (
+                                        <p className="text-sm text-primary-700 dark:text-white/60">
+                                            No similar articles found.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </aside>

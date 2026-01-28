@@ -1,14 +1,14 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import Container from "@/components/common/Container";
 import authService from "@/services/authService";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -17,6 +17,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get('registered') === 'true') {
+      setSuccess("Registration successful! Please sign in with your account.");
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     setFormData({
@@ -24,6 +31,7 @@ export default function LoginPage() {
       [e.target.name]: e.target.value,
     });
     setError("");
+    setSuccess("");
   };
 
   const handleSubmit = async (e) => {
@@ -59,6 +67,14 @@ export default function LoginPage() {
             </div>
 
             <div className="card p-8">
+              {success && (
+                <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg">
+                  <p className="text-green-700 dark:text-green-400 text-sm font-medium">
+                    {success}
+                  </p>
+                </div>
+              )}
+
               {error && (
                 <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-lg">
                   <p className="text-red-700 dark:text-red-400 text-sm font-medium">

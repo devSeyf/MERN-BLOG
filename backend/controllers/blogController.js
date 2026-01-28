@@ -69,8 +69,8 @@ exports.getBlogById = async (req, res) => {
       return res.status(404).json({ message: "Blog not found" });
     }
 
-    blog.views += 1;
-    await blog.save();
+    // Increment views without triggering 'save' middleware/validation
+    await Blog.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
 
     res.status(200).json(blog);
   } catch (error) {
@@ -86,8 +86,21 @@ exports.createBlog = async (req, res) => {
       author: req.user.id,
     };
 
+    // If tags were sent as a JSON string (via FormData), parse them
+    if (typeof req.body.tags === 'string') {
+      try {
+        blogData.tags = JSON.parse(req.body.tags);
+      } catch (e) {
+        // Fallback or ignore if not valid JSON
+      }
+    }
+
     if (req.file) {
       blogData.coverImage = req.file.path;
+    }
+
+    if (!blogData.category) {
+      return res.status(400).json({ message: "Category is required" });
     }
 
     const newBlog = new Blog(blogData);
@@ -117,6 +130,15 @@ exports.updateBlog = async (req, res) => {
 
     const updateData = { ...req.body };
 
+    // If tags were sent as a JSON string (via FormData), parse them
+    if (typeof req.body.tags === 'string') {
+      try {
+        updateData.tags = JSON.parse(req.body.tags);
+      } catch (e) {
+        // Fallback
+      }
+    }
+
     if (req.file) {
       updateData.coverImage = req.file.path;
     }
@@ -141,24 +163,19 @@ exports.updateBlog = async (req, res) => {
 exports.deleteBlog = async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id);
-
     if (!blog) {
       return res.status(404).json({ message: "Blog not found" });
     }
-
     // Check authorization: author or admin
     if (blog.author.toString() !== req.user.id && !req.user.isAdmin) {
       return res
         .status(403)
         .json({ message: "Not authorized to delete this blog" });
     }
-
     const deletedBlog = await Blog.findByIdAndDelete(req.params.id);
-
     if (!deletedBlog) {
       return res.status(404).json({ message: "Blog not found" });
     }
-
     res.status(200).json({ message: "Blog deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -167,32 +184,32 @@ exports.deleteBlog = async (req, res) => {
 
 // Get similar blogs based on category and tags
 exports.getSimilarBlogs = async (req, res) => {
-    try {
-        const blogId = req.params.id;
-        
-        // Get the current blog to find its category and tags
-        const currentBlog = await Blog.findById(blogId);
-        
-        if (!currentBlog) {
-            return res.status(404).json({ message: "Blog not found" });
-        }
-        
-        // Find similar blogs (same category OR matching tags)
-        const similarBlogs = await Blog.find({
-            _id: { $ne: blogId }, // Exclude current blog
-            $or: [
-                { category: currentBlog.category }, // Same category
-                { tags: { $in: currentBlog.tags } } // Matching tags
-            ]
-        })
-        .sort({ views: -1 }) // Sort by most viewed
-        .limit(5) // Return max 5 similar blogs
-        .select('title category tags views likes createdAt coverImage')
-        .populate('author', 'username');
-        
-        res.status(200).json(similarBlogs);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+  try {
+    const blogId = req.params.id;
+
+    // Get the current blog to find its category and tags
+    const currentBlog = await Blog.findById(blogId);
+
+    if (!currentBlog) {
+      return res.status(404).json({ message: "Blog not found" });
     }
+
+    // Find similar blogs (same category OR matching tags)
+    const similarBlogs = await Blog.find({
+      _id: { $ne: blogId }, // Exclude current blog
+      $or: [
+        { category: currentBlog.category }, // Same category
+        { tags: { $in: currentBlog.tags } } // Matching tags
+      ]
+    })
+      .sort({ views: -1 }) // Sort by most viewed
+      .limit(5) // Return max 5 similar blogs
+      .select('title category tags views likes createdAt coverImage')
+      .populate('author', 'username');
+
+    res.status(200).json(similarBlogs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 

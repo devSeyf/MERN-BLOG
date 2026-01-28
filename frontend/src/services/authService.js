@@ -4,10 +4,10 @@ const authService = {
     login: async (credentials) => {
         try {
             const response = await api.post('/auth/login', credentials);
-            const { token, username, isAdmin } = response.data;
+            const { token, id, username, isAdmin } = response.data;
 
             localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify({ username, isAdmin }));
+            localStorage.setItem('user', JSON.stringify({ id, username, isAdmin }));
 
             return response.data;
         } catch (error) {

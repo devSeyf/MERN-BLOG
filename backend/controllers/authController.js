@@ -10,6 +10,11 @@ exports.register = async (req, res) => {
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists.`;
+      return res.status(400).json({ error: message });
+    }
     res.status(400).json({ error: error.message });
   }
 };
@@ -32,7 +37,7 @@ exports.login = async (req, res) => {
 
     res
       .status(200)
-      .json({ token, username: user.username, isAdmin: user.isAdmin });
+      .json({ token, id: user._id, username: user.username, isAdmin: user.isAdmin });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

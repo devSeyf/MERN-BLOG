@@ -1,10 +1,11 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import Container from '@/components/common/Container';
 import dynamic from 'next/dynamic';
+import blogService from '@/services/blogService';
+import authService from '@/services/authService';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 import 'react-quill-new/dist/quill.snow.css';
@@ -15,7 +16,7 @@ export default function EditBlogPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
-  
+
   const [formData, setFormData] = useState({
     title: '',
     excerpt: '',
@@ -36,8 +37,8 @@ export default function EditBlogPage() {
     toolbar: [
       [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
       ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'indent': '-1'}, { 'indent': '+1' }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      [{ 'indent': '-1' }, { 'indent': '+1' }],
       ['blockquote', 'code-block'],
       [{ 'color': [] }, { 'background': [] }],
       [{ 'align': [] }],
@@ -58,39 +59,53 @@ export default function EditBlogPage() {
 
   // Load existing blog data
   useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+
     const loadBlogData = async () => {
       setIsLoading(true);
-      
-      // Simulate API call (سنستبدلها بـ API حقيقي لاحقاً)
-      setTimeout(() => {
-        const blogData = {
-          id: params.id,
-          title: 'Bill Walsh leadership lessons',
-          excerpt: 'Like to know the secrets of transforming a 2-14 team into a 3x Super Bowl winning Dynasty? Insights from one of the greatest professional sport coaches of all time.',
-          content: '<h2>Introduction</h2><p>Bill Walsh was one of the most legendary coaches in NFL history...</p><h2>Key Principles</h2><p>His leadership style was characterized by several key principles...</p>',
-          category: 'Leadership',
-          tags: ['Leadership', 'Management', 'Presentation'],
-          image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=500&fit=crop',
-          status: 'published',
-        };
+      try {
+        const blogData = await blogService.getBlogById(params.id);
+
+        // Check if user is the author
+        const currentUser = authService.getCurrentUser();
+        // Backend populate author might return object or ID depending on query
+        const authorId = typeof blogData.author === 'object' ? blogData.author._id : blogData.author;
+
+        if (authorId !== currentUser?.id && !currentUser?.isAdmin) {
+          router.push('/my-blogs');
+          return;
+        }
 
         setFormData({
           title: blogData.title,
-          excerpt: blogData.excerpt,
+          excerpt: blogData.excerpt || '',
           content: blogData.content,
           category: blogData.category,
-          tags: blogData.tags,
+          tags: blogData.tags || [],
           image: null,
-          status: blogData.status,
+          status: blogData.status || 'published',
         });
-        setImagePreview(blogData.image);
-        setOriginalImage(blogData.image);
+
+        if (blogData.coverImage) {
+          const imgUrl = `http://localhost:5000/${blogData.coverImage}`;
+          setImagePreview(imgUrl);
+          setOriginalImage(imgUrl);
+        }
+      } catch (error) {
+        console.error('Failed to load blog data:', error);
+        router.push('/my-blogs');
+      } finally {
         setIsLoading(false);
-      }, 1000);
+      }
     };
 
-    loadBlogData();
-  }, [params.id]);
+    if (params.id) {
+      loadBlogData();
+    }
+  }, [params.id, router]);
 
   const handleChange = (e) => {
     setFormData({
@@ -122,13 +137,13 @@ export default function EditBlogPage() {
       }
 
       setFormData({ ...formData, image: file });
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
-      
+
       setErrors({ ...errors, image: '' });
     }
   };
@@ -154,28 +169,16 @@ export default function EditBlogPage() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (formData.title.trim().length < 10) {
-      newErrors.title = 'Title must be at least 10 characters';
+    if (!formData.title || formData.title.trim().length < 5) {
+      newErrors.title = 'Title must be at least 5 characters';
     }
 
-    if (formData.excerpt.trim().length < 20) {
-      newErrors.excerpt = 'Excerpt must be at least 20 characters';
-    }
-
-    if (formData.content.trim().length < 100) {
-      newErrors.content = 'Content must be at least 100 characters';
+    if (!formData.content || formData.content.trim().length < 20) {
+      newErrors.content = 'Content must be at least 20 characters';
     }
 
     if (!formData.category) {
       newErrors.category = 'Please select a category';
-    }
-
-    if (formData.tags.length === 0) {
-      newErrors.tags = 'Please add at least one tag';
-    }
-
-    if (!imagePreview) {
-      newErrors.image = 'Please upload a featured image';
     }
 
     setErrors(newErrors);
@@ -189,17 +192,26 @@ export default function EditBlogPage() {
     }
 
     setIsSaving(true);
+    try {
+      const data = new FormData();
+      data.append('title', formData.title);
+      data.append('content', formData.content);
+      data.append('category', formData.category);
+      data.append('status', newStatus || formData.status);
+      data.append('tags', JSON.stringify(formData.tags));
+      if (formData.excerpt) data.append('excerpt', formData.excerpt);
+      if (formData.image) {
+        data.append('coverImage', formData.image);
+      }
 
-    const updateData = {
-      ...formData,
-      status: newStatus || formData.status,
-    };
-
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Updating blog...', updateData);
+      await blogService.updateBlog(params.id, data);
       router.push(`/blogs/${params.id}`);
-    }, 2000);
+    } catch (error) {
+      console.error('Failed to update blog:', error);
+      setErrors({ submit: error.message || 'Failed to update blog' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveDraft = () => {
@@ -214,10 +226,14 @@ export default function EditBlogPage() {
     handleUpdate('draft');
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm('Are you sure you want to delete this blog post?')) {
-      console.log('Deleting blog...');
-      router.push('/my-blogs');
+      try {
+        await blogService.deleteBlog(params.id);
+        router.push('/my-blogs');
+      } catch (error) {
+        console.error('Failed to delete blog:', error);
+      }
     }
   };
 
@@ -267,11 +283,10 @@ export default function EditBlogPage() {
             {/* Status Badge */}
             <div className="flex items-center gap-2">
               <span className="text-sm text-primary-700 dark:text-white/80">Status:</span>
-              <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                formData.status === 'published'
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                  : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-              }`}>
+              <span className={`px-3 py-1 text-sm font-semibold rounded-full ${formData.status === 'published'
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                }`}>
                 {formData.status === 'published' ? 'Published' : 'Draft'}
               </span>
             </div>
@@ -284,7 +299,7 @@ export default function EditBlogPage() {
               <div className="lg:col-span-2 space-y-6">
                 {/* Title */}
                 <div className="card p-6">
-                  <label 
+                  <label
                     htmlFor="title"
                     className="block text-sm font-semibold text-primary-700 dark:text-white mb-2"
                   >
@@ -297,11 +312,10 @@ export default function EditBlogPage() {
                     value={formData.title}
                     onChange={handleChange}
                     placeholder="Enter an engaging title for your blog post"
-                    className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 transition-colors ${
-                      errors.title 
-                        ? 'border-red-500 focus:ring-red-500' 
-                        : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
-                    }`}
+                    className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 transition-colors ${errors.title
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
+                      }`}
                   />
                   {errors.title && (
                     <p className="mt-1 text-sm text-red-500">{errors.title}</p>
@@ -313,7 +327,7 @@ export default function EditBlogPage() {
 
                 {/* Excerpt */}
                 <div className="card p-6">
-                  <label 
+                  <label
                     htmlFor="excerpt"
                     className="block text-sm font-semibold text-primary-700 dark:text-white mb-2"
                   >
@@ -326,11 +340,10 @@ export default function EditBlogPage() {
                     onChange={handleChange}
                     rows="3"
                     placeholder="Write a brief summary of your blog post"
-                    className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 transition-colors ${
-                      errors.excerpt 
-                        ? 'border-red-500 focus:ring-red-500' 
-                        : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
-                    }`}
+                    className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 transition-colors ${errors.excerpt
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
+                      }`}
                   />
                   {errors.excerpt && (
                     <p className="mt-1 text-sm text-red-500">{errors.excerpt}</p>
@@ -342,16 +355,15 @@ export default function EditBlogPage() {
 
                 {/* Content Editor */}
                 <div className="card p-6">
-                  <label 
+                  <label
                     className="block text-sm font-semibold text-primary-700 dark:text-white mb-2"
                   >
                     Content *
                   </label>
-                  <div className={`border-2 rounded-lg overflow-hidden ${
-                    errors.content 
-                      ? 'border-red-500' 
-                      : 'border-primary-700 dark:border-white'
-                  }`}>
+                  <div className={`border-2 rounded-lg overflow-hidden ${errors.content
+                    ? 'border-red-500'
+                    : 'border-primary-700 dark:border-white'
+                    }`}>
                     <ReactQuill
                       theme="snow"
                       value={formData.content}
@@ -375,7 +387,7 @@ export default function EditBlogPage() {
                   <h3 className="text-lg font-semibold text-primary-700 dark:text-white mb-4">
                     Actions
                   </h3>
-                  
+
                   <div className="space-y-3">
                     {/* Save/Update Button */}
                     <button
@@ -448,12 +460,12 @@ export default function EditBlogPage() {
                   <h3 className="text-lg font-semibold text-primary-700 dark:text-white mb-4">
                     Featured Image *
                   </h3>
-                  
+
                   <div className="space-y-3">
                     {imagePreview ? (
                       <div className="relative">
-                        <img 
-                          src={imagePreview} 
+                        <img
+                          src={imagePreview}
                           alt="Preview"
                           className="w-full h-48 object-cover rounded-lg"
                         />
@@ -483,11 +495,10 @@ export default function EditBlogPage() {
                       </div>
                     ) : (
                       <label className="block cursor-pointer">
-                        <div className={`border-2 border-dashed rounded-lg p-8 text-center hover:bg-primary-700/5 dark:hover:bg-white/5 transition-colors ${
-                          errors.image 
-                            ? 'border-red-500' 
-                            : 'border-primary-700 dark:border-white'
-                        }`}>
+                        <div className={`border-2 border-dashed rounded-lg p-8 text-center hover:bg-primary-700/5 dark:hover:bg-white/5 transition-colors ${errors.image
+                          ? 'border-red-500'
+                          : 'border-primary-700 dark:border-white'
+                          }`}>
                           <svg className="w-12 h-12 mx-auto mb-3 text-primary-700 dark:text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
@@ -517,16 +528,15 @@ export default function EditBlogPage() {
                   <h3 className="text-lg font-semibold text-primary-700 dark:text-white mb-4">
                     Category *
                   </h3>
-                  
+
                   <select
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white focus:outline-none focus:ring-2 transition-colors ${
-                      errors.category 
-                        ? 'border-red-500 focus:ring-red-500' 
-                        : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
-                    }`}
+                    className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white focus:outline-none focus:ring-2 transition-colors ${errors.category
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
+                      }`}
                   >
                     <option value="">Select a category</option>
                     {categories.map((cat) => (
@@ -543,7 +553,7 @@ export default function EditBlogPage() {
                   <h3 className="text-lg font-semibold text-primary-700 dark:text-white mb-4">
                     Tags *
                   </h3>
-                  
+
                   <form onSubmit={handleAddTag} className="mb-3">
                     <div className="flex gap-2">
                       <input
@@ -564,7 +574,7 @@ export default function EditBlogPage() {
 
                   <div className="flex flex-wrap gap-2">
                     {formData.tags.map((tag) => (
-                      <span 
+                      <span
                         key={tag}
                         className="px-3 py-1 bg-primary-700 dark:bg-white text-white dark:text-primary-700 rounded-full text-sm font-medium flex items-center gap-1"
                       >

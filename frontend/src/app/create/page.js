@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
@@ -26,14 +27,11 @@ export default function CreateBlogPage() {
   const [errors, setErrors] = useState({});
   const [categories, setCategories] = useState([]);
 
-  // Check authentication on mount
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.push('/login');
       return;
     }
-
-    // Load categories
     loadCategories();
   }, [router]);
 
@@ -47,17 +45,13 @@ export default function CreateBlogPage() {
     }
   };
 
-  // Quill editor modules
   const modules = {
     toolbar: [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      [{ 'header': [1, 2, 3, false] }],
       ['bold', 'italic', 'underline', 'strike'],
       [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      [{ 'indent': '-1' }, { 'indent': '+1' }],
       ['blockquote', 'code-block'],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'align': [] }],
-      ['link', 'image', 'video'],
+      ['link'],
       ['clean']
     ],
   };
@@ -65,11 +59,9 @@ export default function CreateBlogPage() {
   const formats = [
     'header',
     'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet', 'indent',
+    'list', 'bullet',
     'blockquote', 'code-block',
-    'color', 'background',
-    'align',
-    'link', 'image', 'video'
+    'link'
   ];
 
   const handleChange = (e) => {
@@ -91,13 +83,11 @@ export default function CreateBlogPage() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setErrors({ ...errors, image: 'Image size must be less than 5MB' });
         return;
       }
 
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         setErrors({ ...errors, image: 'Please select an image file' });
         return;
@@ -105,7 +95,6 @@ export default function CreateBlogPage() {
 
       setFormData({ ...formData, image: file });
 
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -123,21 +112,24 @@ export default function CreateBlogPage() {
     });
   };
 
-const validateForm = () => {
-  const newErrors = {};
+  const validateForm = () => {
+    const newErrors = {};
 
-  if (!formData.title || formData.title.trim().length === 0) {
-    newErrors.title = 'Title is required';
-  }
+    if (!formData.title || formData.title.trim().length === 0) {
+      newErrors.title = 'Title is required';
+    }
 
-  if (!formData.content || formData.content.trim().length === 0) {
-    newErrors.content = 'Content is required';
-  }
+    if (!formData.content || formData.content.trim().length === 0) {
+      newErrors.content = 'Content is required';
+    }
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    if (!formData.category || formData.category.trim().length === 0) {
+      newErrors.category = 'Category is required';
+    }
 
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -150,10 +142,17 @@ const validateForm = () => {
     setIsLoading(true);
 
     try {
+      console.log('Submitting blog:', formData);
+
       const createdBlog = await blogService.createBlog(formData);
-      router.push(`/blogs/${createdBlog._id}`);
+
+      console.log('Blog created:', createdBlog);
+
+      router.push('/blogs');
     } catch (error) {
       console.error('Create blog error:', error);
+      console.error('Error details:', error.response?.data);
+
       setErrors({
         submit: error.response?.data?.message || 'Failed to create blog. Please try again.'
       });
@@ -166,7 +165,6 @@ const validateForm = () => {
     <MainLayout>
       <section className="min-h-screen py-16 bg-beige-100 dark:bg-primary-700 transition-colors duration-300">
         <Container>
-          {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-primary-700 dark:text-white mb-2">
               Create New Blog Post
@@ -176,7 +174,6 @@ const validateForm = () => {
             </p>
           </div>
 
-          {/* Error Message */}
           {errors.submit && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-lg">
               <p className="text-red-700 dark:text-red-400 text-sm font-medium">
@@ -185,12 +182,9 @@ const validateForm = () => {
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Main Content */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Title */}
                 <div className="card p-6">
                   <label
                     htmlFor="title"
@@ -206,27 +200,23 @@ const validateForm = () => {
                     onChange={handleChange}
                     placeholder="Enter an engaging title for your blog post"
                     className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 transition-colors ${errors.title
-                        ? 'border-red-500 focus:ring-red-500'
-                        : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
                       }`}
                   />
                   {errors.title && (
                     <p className="mt-1 text-sm text-red-500">{errors.title}</p>
                   )}
-                  <p className="mt-1 text-xs text-primary-700 dark:text-white/60">
-                    {formData.title.length} characters
-                  </p>
                 </div>
 
-                {/* Content Editor */}
                 <div className="card p-6">
                   <label className="block text-sm font-semibold text-primary-700 dark:text-white mb-2">
                     Content *
                   </label>
                   <div
                     className={`border-2 rounded-lg overflow-hidden ${errors.content
-                        ? 'border-red-500'
-                        : 'border-primary-700 dark:border-white'
+                      ? 'border-red-500'
+                      : 'border-primary-700 dark:border-white'
                       }`}
                   >
                     <ReactQuill
@@ -244,9 +234,7 @@ const validateForm = () => {
                 </div>
               </div>
 
-              {/* Sidebar */}
               <div className="lg:col-span-1 space-y-6">
-                {/* Publish Actions */}
                 <div className="card p-6">
                   <h3 className="text-sm font-semibold text-primary-700 dark:text-white mb-3">
                     Publish
@@ -273,7 +261,6 @@ const validateForm = () => {
                   </Button>
                 </div>
 
-                {/* Featured Image */}
                 <div className="card p-6">
                   <h3 className="text-sm font-semibold text-primary-700 dark:text-white mb-3">
                     Featured Image
@@ -334,8 +321,6 @@ const validateForm = () => {
                   </div>
                 </div>
 
-
-                {/* Category */}
                 <div className="card p-6">
                   <h3 className="text-sm font-semibold text-primary-700 dark:text-white mb-3">
                     Category
@@ -346,7 +331,10 @@ const validateForm = () => {
                       name="category"
                       value={formData.category}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white focus:outline-none focus:ring-2 transition-colors border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white cursor-pointer"
+                      className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white focus:outline-none focus:ring-2 transition-colors cursor-pointer ${errors.category
+                        ? 'border-red-500 focus:ring-red-500'
+                        : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
+                        }`}
                     >
                       <option value="">Select a category</option>
                       {categories.map((cat) => (
@@ -366,13 +354,17 @@ const validateForm = () => {
                       value={formData.category}
                       onChange={handleChange}
                       placeholder="Type a new category"
-                      className="w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 transition-colors border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white"
+                      className={`w-full px-4 py-3 bg-white dark:bg-transparent border-2 rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 transition-colors ${errors.category
+                        ? 'border-red-500 focus:ring-red-500'
+                        : 'border-primary-700 dark:border-white focus:ring-primary-700 dark:focus:ring-white'
+                        }`}
                     />
+                    {errors.category && (
+                      <p className="mt-1 text-sm text-red-500">{errors.category}</p>
+                    )}
                   </div>
                 </div>
 
-
-                {/* Tags */}
                 <div className="card p-6">
                   <h3 className="text-sm font-semibold text-primary-700 dark:text-white mb-3">
                     Tags

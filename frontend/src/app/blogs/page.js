@@ -1,100 +1,52 @@
 'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import Container from '@/components/common/Container';
 import Link from 'next/link';
+import blogService from '@/services/blogService';
 
 export default function BlogsPage() {
+    const [blogs, setBlogs] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalBlogs, setTotalBlogs] = useState(0);
 
-    // Dummy categories
-    const categories = ['All', 'Design', 'Research', 'Presentation', 'Product', 'Leadership'];
+    const categories = ['All', 'Design', 'Research', 'Presentation', 'Product', 'Leadership', 'Technology'];
 
-    // Dummy blog posts (سنستبدلها بـ API لاحقاً)
-    const allPosts = [
-        {
-            id: 1,
-            title: 'UX review presentations',
-            excerpt: 'How do you create compelling presentations that wow your colleagues and impress your managers?',
-            author: 'Alec Whitten',
-            date: '17 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&h=500&fit=crop',
-            category: 'Leadership',
-            tags: ['Leadership', 'Management', 'Presentation'],
-        },
-        {
-            id: 2,
-            title: 'PM mental models',
-            excerpt: 'Mental models are simple expressions of complex processes or relationships.',
-            author: 'Demi Wilkinson',
-            date: '16 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=500&fit=crop',
-            category: 'Product',
-            tags: ['Product', 'Research', 'Frameworks'],
-        },
-        {
-            id: 3,
-            title: 'What is Wireframing?',
-            excerpt: 'Introduction to Wireframing and its Principles. Learn from the best in the industry.',
-            author: 'Candice Wu',
-            date: '15 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&h=500&fit=crop',
-            category: 'Design',
-            tags: ['Design', 'Research', 'Presentation'],
-        },
-        {
-            id: 4,
-            title: 'How collaboration makes us better designers',
-            excerpt: 'Collaboration can make our teams stronger, and our individual designs better.',
-            author: 'Natali Craig',
-            date: '14 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=500&fit=crop',
-            category: 'Design',
-            tags: ['Design', 'Research', 'Presentation'],
-        },
-        {
-            id: 5,
-            title: 'Our top 10 Javascript frameworks to use',
-            excerpt: 'JavaScript frameworks make development easy with extensive features and functionalities.',
-            author: 'Drew Cano',
-            date: '13 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&h=500&fit=crop',
-            category: 'Product',
-            tags: ['Software Development', 'Tools', 'SaaS'],
-        },
-        {
-            id: 6,
-            title: 'Podcast: Creating a better CX Community',
-            excerpt: 'Starting a community doesn\'t need to be complicated, but how do you get started?',
-            author: 'Orlando Diggs',
-            date: '12 Jan 2022',
-            image: 'https://images.unsplash.com/photo-1590650213165-f4401c2be32c?w=800&h=500&fit=crop',
-            category: 'Leadership',
-            tags: ['Podcasts', 'Customer Success', 'Presentation'],
-        },
-    ];
+    useEffect(() => {
+        fetchBlogs();
+    }, [currentPage, selectedCategory]);
 
-    // Filter posts
-    const filteredPosts = allPosts.filter(post => {
-        const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
-        const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            post.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesCategory && matchesSearch;
-    });
-
-    // Pagination
-    const postsPerPage = 6;
-    const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
-    const startIndex = (currentPage - 1) * postsPerPage;
-    const currentPosts = filteredPosts.slice(startIndex, startIndex + postsPerPage);
+    const fetchBlogs = async () => {
+        setIsLoading(true);
+        try {
+            const params = {
+                page: currentPage,
+                limit: 6,
+                category: selectedCategory === 'All' ? '' : selectedCategory,
+                search: searchQuery
+            };
+            const data = await blogService.getAllBlogs(params);
+            setBlogs(data.blogs);
+            setTotalPages(data.pagination.totalPages);
+            setTotalBlogs(data.pagination.totalBlogs);
+        } catch (error) {
+            console.error('Failed to fetch blogs:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSearch = (e) => {
         e.preventDefault();
-        setCurrentPage(1); // Reset to first page when searching
+        setCurrentPage(1);
+        fetchBlogs();
     };
+
+    const currentPosts = blogs;
 
     return (
         <MainLayout>
@@ -124,8 +76,8 @@ export default function BlogsPage() {
                                         setCurrentPage(1);
                                     }}
                                     className={`px-4 py-2 rounded-full font-medium transition-all ${selectedCategory === category
-                                            ? 'bg-primary-700 dark:bg-white text-white dark:text-primary-700'
-                                            : 'bg-white dark:bg-transparent border-2 border-primary-700 dark:border-white text-primary-700 dark:text-white hover:bg-primary-700/10 dark:hover:bg-white/10'
+                                        ? 'bg-primary-700 dark:bg-white text-white dark:text-primary-700'
+                                        : 'bg-white dark:bg-transparent border-2 border-primary-700 dark:border-white text-primary-700 dark:text-white hover:bg-primary-700/10 dark:hover:bg-white/10'
                                         }`}
                                 >
                                     {category}
@@ -154,7 +106,7 @@ export default function BlogsPage() {
 
                     {/* Results count */}
                     <p className="mt-4 text-sm text-primary-700 dark:text-white/80">
-                        Showing {currentPosts.length} of {filteredPosts.length} articles
+                        Showing {currentPosts.length} of {totalBlogs} articles
                     </p>
                 </Container>
             </section>
@@ -162,7 +114,11 @@ export default function BlogsPage() {
             {/* Blog Posts Grid */}
             <section className="py-16 bg-beige-100 dark:bg-primary-700 transition-colors duration-300">
                 <Container>
-                    {currentPosts.length === 0 ? (
+                    {isLoading ? (
+                        <div className="flex justify-center py-20">
+                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-700 dark:border-white"></div>
+                        </div>
+                    ) : currentPosts.length === 0 ? (
                         <div className="text-center py-20">
                             <svg className="w-16 h-16 mx-auto mb-4 text-primary-700 dark:text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -177,12 +133,12 @@ export default function BlogsPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {currentPosts.map((post) => (
-                                <Link href={`/blogs/${post.id}`} key={post.id}>
+                                <Link href={`/blogs/${post._id}`} key={post._id}>
                                     <article className="card hover:shadow-2xl transition-all cursor-pointer group h-full flex flex-col">
                                         {/* Post Image */}
                                         <div className="aspect-video overflow-hidden rounded-t-xl">
                                             <img
-                                                src={post.image}
+                                                src={post.coverImage ? `http://localhost:5000/${post.coverImage}` : (post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&q=80')}
                                                 alt={post.title}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                             />
@@ -192,9 +148,9 @@ export default function BlogsPage() {
                                         <div className="p-6 flex-1 flex flex-col">
                                             {/* Author and Date */}
                                             <div className="flex items-center gap-3 text-sm text-primary-700 dark:text-white/80 mb-3">
-                                                <span className="font-semibold">{post.author}</span>
+                                                <span className="font-semibold">{post.author?.username || 'Admin'}</span>
                                                 <span>•</span>
-                                                <span>{post.date}</span>
+                                                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
                                             </div>
 
                                             {/* Title with Arrow */}
@@ -254,8 +210,8 @@ export default function BlogsPage() {
                                             key={pageNumber}
                                             onClick={() => setCurrentPage(pageNumber)}
                                             className={`w-10 h-10 rounded-lg font-medium transition-all ${currentPage === pageNumber
-                                                    ? 'bg-primary-700 dark:bg-white text-white dark:text-primary-700'
-                                                    : 'border-2 border-primary-700 dark:border-white text-primary-700 dark:text-white hover:bg-primary-700/10 dark:hover:bg-white/10'
+                                                ? 'bg-primary-700 dark:bg-white text-white dark:text-primary-700'
+                                                : 'border-2 border-primary-700 dark:border-white text-primary-700 dark:text-white hover:bg-primary-700/10 dark:hover:bg-white/10'
                                                 }`}
                                         >
                                             {pageNumber}

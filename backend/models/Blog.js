@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 // Define Comment Schema as a sub-document
 const commentSchema = new mongoose.Schema({
-    user: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User', 
-        required: true 
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     },
     username: { type: String, required: true }, // Store username for fast display
     text: { type: String, required: true, maxlength: 500 },
@@ -25,6 +25,8 @@ const blogSchema = new mongoose.Schema({
     views: { type: Number, default: 0 },
     comments: [commentSchema]
 }, { timestamps: true });
+
+blogSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Blog', blogSchema);
 
