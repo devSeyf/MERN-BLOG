@@ -12,11 +12,17 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
+const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+
 // Routes
 app.use('/api/blogs', require('./routes/blogRoutes'));
 app.use('/api/blogs', require('./routes/commentRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
+
+// Error Middleware
+app.use(notFound);
+app.use(errorHandler);
 
 
 

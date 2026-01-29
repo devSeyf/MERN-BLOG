@@ -1,9 +1,10 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const asyncHandler = require("express-async-handler");
 
 // Register a new user to the database
-exports.register = async (req, res) => {
+exports.register = asyncHandler(async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const newUser = new User({ username, email, password });
@@ -13,32 +14,30 @@ exports.register = async (req, res) => {
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       const message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists.`;
-      return res.status(400).json({ error: message });
+      res.status(400);
+      throw new Error(message);
     }
-    res.status(400).json({ error: error.message });
+    throw error;
   }
-};
+});
 
 // Verify user and generate access token
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+exports.login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
-
-    const token = jwt.sign(
-      { id: user._id, username: user.username, isAdmin: user.isAdmin },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" },
-    );
-
-    res
-      .status(200)
-      .json({ token, id: user._id, username: user.username, isAdmin: user.isAdmin });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    res.status(401);
+    throw new Error("Invalid email or password");
   }
-};
+
+  const token = jwt.sign(
+    { id: user._id, username: user.username, isAdmin: user.isAdmin },
+    process.env.JWT_SECRET,
+    { expiresIn: "1d" },
+  );
+
+  res
+    .status(200)
+    .json({ token, id: user._id, username: user.username, isAdmin: user.isAdmin });
+});

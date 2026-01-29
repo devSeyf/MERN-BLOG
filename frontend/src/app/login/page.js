@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import Container from "@/components/common/Container";
 import authService from "@/services/authService";
-
+import Button from "@/components/common/Button";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,25 +19,29 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+
   useEffect(() => {
     if (searchParams.get('registered') === 'true') {
       setSuccess("Registration successful! Please sign in with your account.");
     }
   }, [searchParams]);
-
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-    setError("");
-    setSuccess("");
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    if (error) setError("");
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+
 
     try {
       await authService.login({
@@ -52,11 +56,12 @@ export default function LoginPage() {
     }
   };
 
+
   return (
     <MainLayout>
       <section className="min-h-screen py-16 bg-beige-100 dark:bg-primary-700 transition-colors duration-300 flex items-center">
         <Container>
-          <div className="max-w-md mx-auto">
+          <div className="max-w-md mx-auto w-full">
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold text-primary-700 dark:text-white mb-2">
                 Welcome back
@@ -66,24 +71,28 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="card p-8">
-              {success && (
-                <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg">
-                  <p className="text-green-700 dark:text-green-400 text-sm font-medium">
-                    {success}
-                  </p>
-                </div>
-              )}
+            {success && (
+              <div className="flex items-center gap-3 p-4 mb-6 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg">
+                <svg className="w-7 h-7 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-green-700 dark:text-green-400 text-sm font-medium break-words flex-1">{success}</p>
+              </div>
+            )}
 
+            <div className="card p-8 w-full">
               {error && (
-                <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-lg">
-                  <p className="text-red-700 dark:text-red-400 text-sm font-medium">
+                <div className="flex items-center gap-3 p-4 mb-6 bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-lg">
+                  <svg className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-red-700 dark:text-red-400 text-sm font-medium break-words flex-1">
                     {error}
                   </p>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} className="w-full">
                 <div className="mb-4">
                   <label
                     htmlFor="email"
@@ -99,7 +108,7 @@ export default function LoginPage() {
                     onChange={handleChange}
                     placeholder="you@example.com"
                     required
-                    className="w-full px-4 py-3 bg-white dark:bg-transparent border-2 border-primary-700 dark:border-white rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-700 dark:focus:ring-white transition-colors"
+                    className="w-full px-4 py-3 text-base bg-white dark:bg-transparent border-2 border-primary-700 dark:border-white rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-700 dark:focus:ring-white transition-colors"
                   />
                 </div>
 
@@ -119,7 +128,7 @@ export default function LoginPage() {
                       onChange={handleChange}
                       placeholder="Enter your password"
                       required
-                      className="w-full px-4 py-3 pr-12 bg-white dark:bg-transparent border-2 border-primary-700 dark:border-white rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-700 dark:focus:ring-white transition-colors"
+                      className="w-full px-4 py-3 pr-12 text-base bg-white dark:bg-transparent border-2 border-primary-700 dark:border-white rounded-lg text-primary-700 dark:text-white placeholder-primary-700/60 dark:placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-700 dark:focus:ring-white transition-colors"
                     />
                     <button
                       type="button"
@@ -185,10 +194,11 @@ export default function LoginPage() {
                   </Link>
                 </div>
 
-                <button
+                <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full px-6 py-3 font-semibold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-[#0f766e] text-white hover:bg-[#115e59] dark:bg-[#0f766e] dark:text-white dark:hover:bg-[#115e59]"
+                  variant="solid"
+                  className="w-full py-3"
                 >
                   {isLoading ? (
                     <>
@@ -216,7 +226,7 @@ export default function LoginPage() {
                   ) : (
                     "Sign in"
                   )}
-                </button>
+                </Button>
               </form>
 
               <p className="text-center text-sm text-primary-700 dark:text-white/80 mt-6">
